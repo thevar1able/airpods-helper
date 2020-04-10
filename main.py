@@ -2,6 +2,7 @@
 
 import time
 import logging
+from typing import Optional, List, Callable, Set, Dict
 
 from pydbus import SystemBus, SessionBus
 from gi.repository import GLib
@@ -9,45 +10,111 @@ from gi.repository import GLib
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-system_bus = SystemBus()
-session_bus = SessionBus()
-loop = GLib.MainLoop()
-airpods = system_bus.get("org.bluez", "/org/bluez/hci0/dev_14_87_6A_13_20_A2")
-player = session_bus.get("org.mpris.MediaPlayer2.playerctld", "/org/mpris/MediaPlayer2")
 
-was_playing = player.PlaybackStatus
+class AirpodsConnectionManager:
+    BLUEZ_INTERFACE: str = 'org.bluez'
+    BLUEZ_HCI_ADDRESS_TEMPLATE: str = '/org/bluez/{device}/dev_{mac_address}'
 
-def handler(address, state, idk):
-	global was_playing
+    BLUEZ_DEVICE_INTERFACE: str = 'org.bluez.Device1'
+    BLUEZ_DEVICE_EVENT_STATE_KEY: str = 'Connected'
 
-	logger.debug('%(address)s %(state)s %(idk)s', {
-		'address': address,
-		'state': state,
-		'idk': idk,
-	})
+    connect_event_handlers: Set[Callable] = set()
+    disconnect_event_handlers: Set[Callable] = set()
 
-	if address == 'org.bluez.Device1':
-		if 'Connected' in state and state['Connected'] == True:
-			# FIXME
-			time.sleep(0.5)
-			airpods.Connect()
+    def __init__(self, mac_address: str, device: str = 'hci0'):
+        system_bus = SystemBus()
 
-			logger.debug('Setting playerctld status: %s', was_playing)
-			if was_playing == 'Playing':
-				player.Play()
+        mac_address = mac_address.replace(':', '_').upper()
 
-		if 'Connected' in state and state['Connected'] == False:
-			was_playing = player.PlaybackStatus
-			logger.debug('Saving playerctld status: %s', was_playing)
+        self.airpods = system_bus.get(
+            self.BLUEZ_INTERFACE,
+            self.BLUEZ_HCI_ADDRESS_TEMPLATE.format(
+                device=device,
+                mac_address=mac_address,
+            ))
 
-			player.Pause()
+        self.connect_event_handlers.add(self.connect_handler)
+        self.airpods.PropertiesChanged.connect(self.signal_handler)
+
+    def subscribe(self, on_connect: Optional[List[Callable]] = None, on_disconnect: Optional[List[Callable]] = None):
+        if on_connect is None:
+            on_connect = []
+        if on_disconnect is None:
+            on_disconnect = []
+
+        self.connect_event_handlers.update(on_connect)
+        self.disconnect_event_handlers.update(on_disconnect)
+
+    def connect_handler(self):
+        # FIXME
+        time.sleep(0.5)
+        self.airpods.Connect()
+
+    def signal_handler(self, interface_name: str, changed_properties: Dict[str, str],
+                       invalidated_properties: List[str]):
+        logger.debug('%(interface_name)s %(changed_properties)s %(invalidated_properties)s', {
+            'interface_name': interface_name,
+            'changed_properties': changed_properties,
+            'invalidated_properties': invalidated_properties,
+        })
+
+        if interface_name != self.BLUEZ_DEVICE_INTERFACE:
+            return
+
+        new_device_state = changed_properties.get(self.BLUEZ_DEVICE_EVENT_STATE_KEY)
+        if new_device_state is None:
+            return
+
+        handler_list = []
+
+        if new_device_state is True:
+            handler_list = self.connect_event_handlers
+
+        if new_device_state is False:
+            handler_list = self.disconnect_event_handlers
+
+        [f() for f in handler_list]
+
+
+class PlayercltdPlayerManager:
+    PLAYERCTL_INTERFACE = 'org.mpris.MediaPlayer2.playerctld'
+    MEDIA_PLAYER_ADDRESS = '/org/mpris/MediaPlayer2'
+
+    def __init__(self):
+        session_bus = SessionBus()
+
+        self.player = session_bus.get(
+            self.PLAYERCTL_INTERFACE,
+            self.MEDIA_PLAYER_ADDRESS,
+        )
+
+        self.was_playing = self.player.PlaybackStatus
+
+    def on_connect(self):
+        logger.debug('Setting playerctld status: %s', self.was_playing)
+        if self.was_playing == 'Playing':
+            self.player.Play()
+
+    def on_disconnect(self):
+        self.was_playing = self.player.PlaybackStatus
+        logger.debug('Saving playerctld status: %s', self.was_playing)
+
+        self.player.Pause()
+
 
 if __name__ == '__main__':
-	airpods.PropertiesChanged.connect(handler)
+    airpods_manager = AirpodsConnectionManager('14:87:6A:13:20:A2')
+    playerctld_manager = PlayercltdPlayerManager()
 
-	logger.debug('Starting main loop')
-	try:
-		loop.run()
-	except KeyboardInterrupt:
-		logger.debug('Exiting')
-		loop.quit()
+    airpods_manager.subscribe(
+        on_connect=[playerctld_manager.on_connect],
+        on_disconnect=[playerctld_manager.on_disconnect],
+    )
+
+    loop = GLib.MainLoop()
+    logger.debug('Starting main loop')
+    try:
+        loop.run()
+    except KeyboardInterrupt:
+        logger.debug('Exiting')
+        loop.quit()
