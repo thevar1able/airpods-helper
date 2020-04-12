@@ -8,7 +8,8 @@ from . import AirpodsConnectionManager, PlayercltdPlayerManager
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-if __name__ == '__main__':
+
+def main() -> int:
     airpods_manager = AirpodsConnectionManager('14:87:6A:13:20:A2')
     playerctld_manager = PlayercltdPlayerManager()
 
@@ -24,3 +25,9 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         logger.debug('Exiting')
         loop.quit()
+
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
