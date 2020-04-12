@@ -2,7 +2,7 @@
 
 _pkgbase=airpods-helper
 pkgname="${_pkgbase}-git"
-pkgver=0.0.1
+pkgver=r10.6085aa4
 pkgrel=1
 pkgdesc="Small utility to automate Apple Airpods connection process"
 arch=(any)

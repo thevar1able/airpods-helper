@@ -1,11 +1,8 @@
 [Unit]
-# FIXME
 Description=Small utility to automate Apple Airpods connection process
 
 [Service]
-# FIXME
-Type=dbus
-BusName=org.bluez
+Type=simple
 ExecStart=/usr/bin/airpods-helper
 Restart=on-failure
 RestartSec=3
