@@ -2,7 +2,7 @@
 
 _pkgbase=airpods-helper
 pkgname="${_pkgbase}-git"
-pkgver=r3.4b3acde  # FIXME
+pkgver=0.0.1
 pkgrel=1
 pkgdesc="Small utility to automate Apple Airpods connection process"
 arch=(any)
@@ -30,5 +30,5 @@ package() {
     python setup.py install --root="$pkgdir/" --optimize=1
 
     install -D -m644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
-    install -D -m644 systemd/airpods-companion.service "${pkgdir}/usr/lib/systemd/user/discordrp-mpris.service"
+    install -D -m644 systemd/airpods-helper.service "${pkgdir}/usr/lib/systemd/user/airpods-helper.service"
 }
