@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import Optional, List, Set, Callable, Dict
 
 from pydbus import SystemBus
@@ -42,8 +41,6 @@ class AirpodsConnectionManager:
         self.disconnect_event_handlers.update(on_disconnect)
 
     def connect_handler(self):
-        # FIXME
-        time.sleep(0.5)
         self.airpods.Connect()
 
     def signal_handler(self, interface_name: str, changed_properties: Dict[str, str],
