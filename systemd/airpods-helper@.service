@@ -1,0 +1,12 @@
+[Unit]
+Description=Small utility to automate Apple Airpods connection process (%I)
+After=bluetooth.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/airpods-helper %I
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
