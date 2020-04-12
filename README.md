@@ -10,5 +10,13 @@ bluetoothctl pair 14:87:6A:13:20:A2
 bluetoothctl trust 14:87:6A:13:20:A2
 bluetoothctl connect 14:87:6A:13:20:A2
 
-./main.py
+# Arch Linux
+cd pkgbuild
+makepkg -si
+
+systemctl enable --user airpods-helper.service --now
+
+# Manual
+pip install https://github.com/thevar1able/airpods-helper
+airpods-helper
 ```
